@@ -1,71 +1,40 @@
-# Botbooked.ai - Meeting Scheduling Assistant
+# BotBooked.ai - Agentic Meeting Scheduling Assistant
 
-This project is an **Agentic AI-powered** scheduling assistant designed to manage calendar events, process user requests, and integrates with large language models (LLMs) for intelligent decision-making. The project includes a Flask-based API, integration with vLLM for LLM inference.
+An agentic AI assistant that reads a meeting request (JSON with email text and attendees), checks participants' Google Calendars, and finds or reschedules slots, using an LLM served by vLLM on an AMD Instinct MI300 GPU. Built as a hackathon submission (AMD).
 
-![Image](assets/botbooked_ai.png)
+## What it does
+`app.py` implements a LangGraph workflow: an LLM extracts meeting details from natural-language email content, Google Calendar availability is fetched per attendee, and a scheduling algorithm picks optimal times based on per-participant preferences (working hours, max meetings/day, back-to-back avoidance, buffer minutes) and meeting priority, with the ability to move lower-priority events.
 
-## Project Structure
+## Key features
+- LangGraph state graph orchestration (`StateGraph`), JSON-parsed LLM output via LangChain.
+- Google Calendar integration (reads per-user OAuth token files from a `Keys/` directory).
+- Preference- and priority-aware scheduling.
+- Flask `POST /receive` endpoint (`run.py`) that takes the request JSON and returns the final output.
+- Streamlit front end (`streamlit_app.py`, ~365 lines) with dark theme to submit requests and view responses.
+- `Submission.ipynb` runs the Flask API in a background thread and tests it with curl and sample requests.
 
-### Core application logic
+## Tech stack
+LangGraph, LangChain (`langchain-openai`, `langchain-core`), Qwen3-4B served via vLLM (OpenAI-compatible API) on AMD MI300, Google Calendar API, Flask, Streamlit.
 
+## Project structure
 ```
-├── app.py                          # Main application entry point 
-├── assets/                         # Static assets 
-│   ├── amd.png                     # GPU Logo
-    |── botbooked_ai.png            # Project Logo
-│   └── Usecase_presentation.mov    # Use case presentation
-├── run.py                          # Flask server for API integration 
-├── streamlit_app.py                # Streamlit app for UI 
-├── Submission.ipynb                # Submission notebook (Template)
-└── README.md                       # Project documentation
+app.py              # LangGraph scheduling logic
+run.py              # Flask API (/receive, port 5000)
+streamlit_app.py    # Streamlit UI
+Submission.ipynb    # submission notebook / tests
+assets/             # logo, presentation video, images
+requirements.txt    # langgraph, langchain-openai, langchain-core
 ```
 
-### Step - 1: Install dependencies
+## Setup
+```bash
+pip install -r requirements.txt   # note: Google API and Flask/Streamlit packages are also imported but not listed
+python run.py                      # Flask API on :5000
+streamlit run streamlit_app.py
+```
+Requires a running OpenAI-compatible vLLM endpoint and Google OAuth token files in `Keys/` (not included). The model client in `app.py` uses a placeholder API key.
 
-``` pip install -r requirements.txt```
-
-### Step - 2: Running the Flask Server
-
-```streamlit run streamlit_app.py```
-
-### Step - 3: Input details 
-
-Provide the input JSON in the below template to the Streamlit application, and click on Submit button. 
-
-The inference will happen on AMD MI300 GPU hosted on vLLM and sends back the final response to the user.
-
-## Hardware and Software Stack
-
-- LangGraph (Agentic-AI framework)
-- Qwen-3 4B LLM Model
-- AMD Instinct MI300 GPU 
-- vLLM for Model serving
-
-## Key Endpoints
-
-#### ```/receive ``` (POST Method)
-
--  **Description:** Processes user requests and returns AI-generated responses.
-- **Request Body:** JSON object containing user data.
-- **Response:** JSON object with processed output.
-
-#### Basic Troubleshooting
-
-- ```FileNotFoundError```: Ensure the required token files are present in the keys/ directory.
-- ```Port in Use:``` If the Flask server fails to start, ensure port 5000 is not in use or modify the port in run.py.
-
-## Presentation Preview 
-
-Access a 1-min <a href="assets/Usecase_presentation.mov">video presentation</a> detailing about the project!
-
-## License
-This project is licensed under the MIT License. See the LICENSE file for details.
-
-## Acknowledgments
-
-Inference generated through vLLM and model serving from AMD Instinct MI-300 GPU.
-
-![AMD MI-300](https://www.amd.com/content/dam/amd/en/images/pr-feed/1213366.jpg)
-
-vLLM for efficient LLM inference and Hugging Face for providing access to LLMs.
-
+## Limitations
+- `run.py` imports `from app1 import graph` but the module is `app.py` (the notebook uses `from app import builder`); fix needed.
+- requirements.txt is incomplete.
+- Compiled `__pycache__` and a notebook checkpoint are committed; the README mentions a LICENSE file that is absent.
